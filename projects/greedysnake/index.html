@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Greedy Snake</title>
+    <style>
+        .tip-container {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .tip {
+            border: 1px dashed pink;
+            padding: 10px;
+        }
+
+        .playground-container {
+            width: max-content;
+            border: 1px solid;
+            margin: 20px 0px;
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid;
+            background: #81b214;
+        }
+
+        .row {
+            display: flex;
+        }
+
+        .food {
+            background: #f8f5f1;
+        }
+
+        .snake-head {
+            background: #440a67;
+        }
+
+        .snake-body {
+            background: #93329e;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div style="display: flex; align-items: flex-end;">
+        <div style="margin-right: 16px;">
+            <div>行数（列数）</div>
+            <input type="number" id="rowNum" value="9">
+        </div>
+        <div>
+            <button onclick="init()">渲染</button>
+        </div>
+    </div>
+    <div class="playground-container"></div>
+    <div class="tip-container">
+        <div class="tip" style="margin-right: 20px">
+            <p>按 K 键开始游戏</p>
+            <p>按上下左右键改方向</p>
+            <p>空格暂停</p>
+            <p>按 R 键重新开始游戏</p>
+        </div>
+        <div class="tip">
+            <p>可以穿墙</p>
+            <p>吃到自己时游戏结束</p>
+        </div>
+    </div>
+</div>
+<script>
+    const log = console.log.bind(console)
+
+    const e = (selector) => {
+        return document.querySelector(selector)
+    }
+
+    const ea = (selector) => {
+        return document.querySelectorAll(selector)
+    }
+
+    const moveDirectionCode = function(moveDirection) {
+        let moveDirectionMapper = {
+            'up': 0,
+            'right': 1,
+            'down': 2,
+            'left': 3,
+        }
+
+        return moveDirectionMapper[moveDirection]
+    }
+
+    let global = {}
+
+    // 画图
+    const cell = function(y, x) {
+        return `<div class="cell" data-x="${x}" data-y="${y}"></div>`
+    }
+
+    const row = function(y, width) {
+        let r = ``
+
+        for (let i = 0; i < width; i++) {
+            r += cell(y, i)
+        }
+
+        r = `<div class="row">${r}</div>`
+
+        return r
+    }
+
+    const square = function(height, width) {
+        let r = ``
+
+        for (let i = 0; i < height; i++) {
+            r += row(i, width)
+        }
+
+        return r
+    }
+
+    const drawPlayground = function() {
+        let playgroundSize = global.playgroundSize
+
+        let playgroundHTML = square(playgroundSize.height, playgroundSize.width)
+        e('.playground-container').insertAdjacentHTML('beforeend', playgroundHTML)
+    }
+
+    const randomPosition = function(boundary) {
+        let r = {
+            x: Math.floor(boundary.x * Math.random()),
+            y: Math.floor(boundary.y * Math.random()),
+        }
+
+        return r
+    }
+
+    const foodPosition = function(boundary) {
+        let snake = global.snake
+        let a = randomPosition(boundary)
+        let x = snake.findIndex(e => {
+            return e.x !== a.x && e.y !== a.y
+        })
+        let conflict = x === -1
+
+        if (conflict === true) {
+            return foodPosition(boundary)
+        } else {
+            return a
+        }
+    }
+
+    const updateFoodPosition = function() {
+        let boundary = {
+            x: global.playgroundSize.width,
+            y: global.playgroundSize.height,
+        }
+        let f = foodPosition(boundary)
+
+        global.foodPosition = {
+            x: f.x,
+            y: f.y,
+        }
+    }
+
+    const drawFood = function() {
+        let foodPosition = global.foodPosition
+        let foodElement = e(`[data-x="${foodPosition.x}"][data-y="${foodPosition.y}"]`)
+
+        let f = e('.food')
+        if (f !== null) {
+            f.classList.remove('food')
+        }
+
+        foodElement.classList.add('food')
+    }
+
+    const drawSnake = function() {
+        let snake = global.snake
+
+        let a = ea('.snake-body')
+        a.forEach(e => {
+            e.classList.remove('snake-body')
+        })
+        let b = e('.snake-head')
+        if (b !== null) {
+            b.classList.remove('snake-head')
+        }
+        for (let i = 0; i < snake.length; i++) {
+            let item = snake[i]
+            let element = e(`[data-x="${item.x}"][data-y="${item.y}"]`)
+
+            if (i === 0) {
+                element.classList.add('snake-head')
+            } else {
+                element.classList.add('snake-body')
+            }
+        }
+    }
+
+    // 主要逻辑
+    const keyUpEvent = function(event) {
+        let arrowKeyMapper = {
+            'ArrowLeft': 'left',
+            'ArrowUp': 'up',
+            'ArrowRight': 'right',
+            'ArrowDown': 'down',
+        }
+        let c = event.code
+        if (c.startsWith('Arrow')) {
+            let direction = arrowKeyMapper[c]
+            changeDirection(direction)
+        } else if (c === 'Space') {
+            pauseGame()
+        } else if (c === 'KeyK') {
+            if (global.gameStatus === 'waitStart') {
+                greedySnakeGameStart()
+            }
+        } else if (c === 'KeyR') {
+            init()
+        }
+    }
+
+    const changeDirection = function(direction) {
+        let snake = global.snake
+        let d = moveDirectionCode(direction)
+        // 蛇头的下一个坐标
+        let headNP = nextPosition(d, snake[0])
+        let goToBody = headNP.x === snake[1].x && headNP.y === snake[1].y
+
+        if (!goToBody) {
+            global.moveDirection = direction
+        }
+    }
+
+    const nextPosition = function(direction, currentPosition) {
+        let r = {}
+        let playgroundSize = global.playgroundSize
+        r.x = currentPosition.x
+        r.y = currentPosition.y
+
+        if (direction === 0) {
+            r.y = (r.y + playgroundSize.height - 1) % playgroundSize.height
+        } else if (direction === 1) {
+            r.x = (r.x + playgroundSize.width + 1) % playgroundSize.width
+        } else if (direction === 2) {
+            r.y = (r.y + playgroundSize.height + 1) % playgroundSize.height
+        } else if (direction === 3) {
+            r.x = (r.x + playgroundSize.width - 1) % playgroundSize.width
+        }
+
+        return r
+    }
+
+    const pauseGame = function() {
+        if (global.gameStatus === 'paused') {
+            greedySnakeGameStart()
+        } else if (global.gameStatus === 'start') {
+            log('游戏暂停')
+            global.gameStatus = 'paused'
+            clearInterval(global.gameTimer)
+        }
+    }
+
+    const gameover = function() {
+        log('游戏结束，按 R 重新开始游戏')
+        global.gameStatus = 'over'
+        clearInterval(global.gameTimer)
+    }
+
+    const bindEvent = function() {
+        window.addEventListener('keyup', keyUpEvent)
+    }
+
+    const init = function() {
+        clearInterval(global.gameTimer)
+        let rowNum = Number(e('#rowNum').value)
+        global = {
+            gameStatus: 'waitStart',
+            gameTimer: null,
+            moveDirection: 'right',
+            playgroundSize: {
+                width: rowNum,
+                height: rowNum,
+            },
+            snake: [
+                {
+                    x: 4,
+                    y: 5,
+                },
+                {
+                    x: 3,
+                    y: 5,
+                },
+                {
+                    x: 2,
+                    y: 5,
+                },
+            ],
+        }
+        let c = e('.playground-container')
+        if (c.innerHTML !== '') {
+            c.innerHTML = ''
+        }
+
+        // 画图
+        drawPlayground()
+        updateFoodPosition()
+        drawFood()
+        drawSnake()
+
+        // 绑定事件
+        bindEvent()
+    }
+
+    const greedySnakeGameStart = function() {
+        log('游戏开始')
+        global.gameStatus = 'start'
+        global.gameTimer = setInterval(() => {
+            let moveDirection = global.moveDirection
+            let snake = global.snake
+            let food = global.foodPosition
+
+            let d = moveDirectionCode(moveDirection)
+            // 蛇头的下一个坐标
+            let headNP = nextPosition(d, snake[0])
+            // 蛇头的下一个坐标和食物的坐标一样，nextPositionIsFoodPosition 等于 true
+            let nextPositionIsFoodPosition = headNP.x === food.x && headNP.y === food.y
+            // 所有蛇身体的坐标都和蛇头的下一个坐标不一样，nextPositionIsBody 等于 false
+            let x = snake.slice(1).findIndex(e => {
+                return headNP.x === e.x && headNP.y === e.y
+            })
+            let nextPositionIsBody = x !== -1
+            if (nextPositionIsFoodPosition) {
+                // 吃食物（更新蛇数组，添加新食物）
+                snake.unshift(food)
+                updateFoodPosition()
+            } else if (nextPositionIsBody) {
+                gameover()
+            } else {
+                // 移动（更新蛇数组）
+                for (let i = snake.length - 1; i >= 0; i--) {
+                    let item = snake[i]
+                    let lastItem = snake[i - 1]
+                    if (i !== 0) {
+                        item.x = lastItem.x
+                        item.y = lastItem.y
+                    } else {
+                        item.x = headNP.x
+                        item.y = headNP.y
+                    }
+                }
+            }
+
+            drawFood()
+            drawSnake()
+        }, 200)
+    }
+
+    const __main = function() {
+        init()
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        __main()
+    })
+</script>
+</body>
+</html>
+<!--
+1 画地图（尺寸写在了 global 中）
+2 画食物（需要判断是否和蛇的位置冲突，冲突了就重新获取位置）
+3 画蛇（初始位置和初始移动方向写在了 global 中）
+4 游戏主函数（添加事件监听，定时器循环画图）
+    添加事件监听
+        上下左右改方向
+        空格暂停
+        按 K 开始游戏
+        按 R 重新开始游戏
+    定时器循环画图
+        （根据方向移动蛇）
+        如果蛇头的下一个位置是食物，那就吃掉食物，更新蛇数组，添加新食物
+        如果蛇头的下一个位置不是食物，更新蛇数组
+        如果蛇头的下一个位置是自己的身体，游戏结束
+-->

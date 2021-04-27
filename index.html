@@ -1,10 +1,176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <meta charset="utf-8">
+    <title>vfls</title>
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="index.css">
 </head>
 <body>
-<div>你好</div>
+<div id="nav">
+    <div id="logo" onclick="loadProject(0)">
+        <img width="100%" height="100%" src="static/logo.jpg" alt=""/>
+    </div>
+    <div id="projects">
+        <div id="projects-container"></div>
+    </div>
+    <div id="expand">
+        <div class="line"></div>
+        <div class="line"></div>
+        <div class="line"></div>
+    </div>
+</div>
+<div id="viewer">
+    <iframe id="iframe" data-id="0" src="home/index.html"></iframe>
+</div>
+<script>
+    const log = console.log.bind(console)
+
+    const e = (selector) => {
+        return document.querySelector(selector)
+    }
+
+    const es = (selector) => {
+        return document.querySelectorAll(selector)
+    }
+
+    const dc = (tagName) => {
+        return document.createElement(tagName)
+    }
+</script>
+<script>
+    // 项目元素
+    const projectHTML = function(projectObj) {
+        let p = projectObj
+
+        let result = `
+        <div class="project" data-id="${String(p.id)}">
+            <div class="project-container">
+                <div class="project-img"><img src="${p.iconPath}" width="100%" height="100%" lt=""/></div>
+                <div class="project-info">
+                    <div class="project-name">${p.name}</div>
+                    <div class="project-timestamp">${p.timestamp}</div>
+                </div>
+            </div>
+        </div>`
+
+        return result
+    }
+
+    // 加载项目
+    const loadProject = function(projectId) {
+        let iframe = e('#iframe')
+        let projectsData = global.projectsData
+        let id = global.selectedProjectId
+        if (projectId !== undefined) {
+            id = projectId
+        }
+        let src
+
+        for (let i = 0; i < projectsData.length; i++) {
+            let p = projectsData[i]
+            if (p.id === id) {
+                src = p.link
+                iframe.dataset.id = String(p.id)
+                iframe.src = src
+                break
+            }
+        }
+
+        expandClicked('hide')
+    }
+
+    // 切换项目
+    const changeProject = function() {
+        let projects = e('#projects')
+        projects.addEventListener('click', event => {
+            let target = event.target
+            let projectEle = target.closest('.project')
+            if (projectEle === null) {
+                return
+            }
+            log('projectEle >>>>>>> ', '(', projectEle, ')')
+            let id = projectEle.dataset.id
+            global.selectedProjectId = Number(id)
+            loadProject()
+        })
+    }
+
+    const expandClicked = function(action) {
+        let projects = e('#projects')
+        if (action === undefined) {
+            projects.classList.toggle('showProjects')
+        } else if (action === 'hide') {
+            projects.classList.remove('showProjects')
+        } else if (action === 'show') {
+            projects.classList.add('showProjects')
+        }
+    }
+
+    // 切换项目容器的显示
+    const toggleDisplayProjects = function() {
+        let expand = e('#expand')
+
+        expand.addEventListener('click', event => {
+            expandClicked()
+        })
+    }
+
+    // 绑定事件
+    const bindEvents = () => {
+        toggleDisplayProjects()
+        changeProject()
+    }
+
+    const render = () => {
+        // 在项目容器元素中添加所有项目元素
+        let projectsContainer = e('#projects-container')
+        let projectsData = global.projectsData
+
+        for (let i = 1; i < projectsData.length; i++) {
+            let p = projectsData[i]
+            let projectH = projectHTML(p)
+            projectsContainer.insertAdjacentHTML('beforeend', projectH)
+        }
+    }
+
+    const setup = () => {
+        render()
+    }
+
+    const global = {
+        projectsData: [
+            {
+                'id': 0,
+                'name': 'Home',
+                'link': 'home/index.html',
+            },
+            {
+                'id': 1,
+                'name': 'Minesweeper',
+                'timestamp': '2020/04/09',
+                'link': 'projects/sklz/index.html',
+                'iconPath': 'static/sklz.jpg',
+            },
+            {
+                'id': 2,
+                'name': 'Greedy Snake',
+                'timestamp': '2020/04/13',
+                'link': 'projects/greedysnake/index.html',
+                'iconPath': 'static/snake.svg',
+            },
+        ],
+        selectedProjectId: 0,
+    }
+
+    const __main = () => {
+        bindEvents()
+        setup()
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        __main()
+    })
+</script>
 </body>
 </html>

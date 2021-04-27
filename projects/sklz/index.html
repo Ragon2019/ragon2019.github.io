@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        body {
+            margin: 10px;
+        }
+
+        .gamearea {
+            margin: 10px 0px;
+        }
+
+        #id-div-mime {
+            display: flex;
+            flex-wrap: wrap;
+            width: min-content;
+            height: auto;
+            border: 1px solid;
+        }
+
+        .row {
+            display: flex;
+        }
+
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            border: 1px solid;
+            background-image: url(./static/cell.png);
+            font-size: 0px;
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+
+        .opened {
+            font-size: 18px;
+            background-image: url(./static/empty.png);
+        }
+
+        .cell[data-number="9"].opened {
+            background-image: url(./static/black_boom.png);
+        }
+
+        .cell[data-number="9"].opened.fail {
+            font-size: 0px;
+            background-image: url(./static/red_boom.png);
+        }
+
+        .cell[data-number="0"].opened {
+            font-size: 0px;
+            background-image: url(./static/empty.png);
+        }
+
+        .cell.flag {
+            font-size: 0px;
+            background-image: url(./static/flag.png);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.min.js"></script>
+</head>
+<body>
+<div style="margin-bottom: 20px">
+    <div>
+        <div>雷数</div>
+        <input type="number" id="bombNum" value="16">
+    </div>
+    <div>
+        <div>行数（列数）</div>
+        <input type="number" id="rowNum" value="9">
+    </div>
+    <div style="margin-top: 10px;">
+        <button onclick="__main()">渲染</button>
+    </div>
+    <div class="gamearea"></div>
+    <div>
+        游戏规则：<br>
+        1 左键单击格子展开<br>
+        2 右键单击格子标记旗子<br>
+        3 点到炸弹则游戏结束<br>
+        4 所有炸弹都被标记则游戏成功<br>
+    </div>
+</div>
+<script>
+    const log = console.log.bind(console)
+
+    const e = (selector) => {
+        return document.querySelector(selector)
+    }
+
+    const global = {
+        gameStatus: true,
+        haveFirstClick: true,
+    }
+
+    const templateCell = function(line, x) {
+        let r = ''
+
+        for (let i = 0; i < line.length; i++) {
+            let value = line[i]
+            let a = `<div class="cell" data-number="${value}" data-x="${x}" data-y="${i}"><div>${value}</div></div>`
+            r += a
+        }
+
+        r = `<div class="row">${r}</div>`
+
+        return r
+    }
+
+    const templateRow = function(square) {
+        let r = ''
+
+        for (let i = 0; i < square.length; i++) {
+            let squareItem = square[i]
+            r += templateCell(squareItem, i)
+        }
+
+        return r
+    }
+
+    const renderSquare = function(square) {
+        let r = ''
+
+        r += templateRow(square)
+        r = `<div id="id-div-mime">${r}</div>`
+
+        return r
+    }
+
+    // 根据数据画页面
+    const drawsklz = function(square) {
+        let gamearea = e('.gamearea')
+        let s = JSON.parse(square)
+        let squareHTMLString = renderSquare(s)
+
+        gamearea.insertAdjacentHTML('beforeend', squareHTMLString)
+    }
+
+    const bindEventDelegate = function(square) {
+        let c = e('#id-div-mime')
+        let s = JSON.parse(square)
+
+        c.addEventListener('click', event => {
+            // 游戏结束时禁止操作
+            if (global.gameStatus === false) {
+                return
+            }
+
+            let t = event.target
+            let num = t.dataset.number
+            let x = t.dataset.x
+            let y = t.dataset.y
+
+            // 首次点击，点击的格子不是 0
+            if (num !== '0' && global.haveFirstClick) {
+                // 重画并点击
+                log('dudu')
+                let sklzBox = e('#id-div-mime')
+                if (sklzBox !== null) {
+                    sklzBox.remove()
+                }
+                reDraw(x, y)
+                return
+            } else {
+                global.haveFirstClick = false
+            }
+
+            // 普通点击，展开
+            if (t.classList.contains('cell')) {
+                t.classList.remove('flag')
+                t.classList.remove('question')
+                vjkl(t, s)
+            }
+        })
+
+        c.addEventListener('contextmenu', event => {
+            event.preventDefault()
+            // 游戏结束时禁止操作
+            if (global.gameStatus === false) {
+                return
+            }
+
+            let t = event.target
+            t.classList.add('flag')
+
+            if (success()) {
+                afterSuccess()
+                return
+            }
+        })
+    }
+
+    const vjkl = function(cell, square) {
+        if (!cell.classList.contains('opened')) {
+            let cellNumber = cell.dataset.number
+            let cellX = Number(cell.dataset.x)
+            let cellY = Number(cell.dataset.y)
+
+            if (cellNumber === '9') {
+                gameOver(cellX, cellY)
+                return
+            } else if (cellNumber === '0') {
+                vjklAround(square, cellX, cellY)
+            } else {
+                cell.classList.add('opened')
+            }
+
+
+            if (success()) {
+                afterSuccess()
+                return
+            }
+        }
+    }
+
+    // 判断是否成功（在每次点击格子，格子展开的时候判断）
+    const success = function() {
+        let result = true
+        let c = e('#id-div-mime')
+        let allCell = c.querySelectorAll('.cell')
+
+        for (let i = 0; i < allCell.length; i++) {
+            let cell = allCell[i]
+            let isFlag = cell.classList.contains('flag')
+            let isOpened = cell.classList.contains('opened')
+            let isBomb = cell.dataset.number === '9'
+            let conditions = [
+                // 有标记的格子不是 bomb，游戏不能通关
+                isFlag && !isBomb,
+                // 有没展开的格子，且格子不是 bomb，游戏不能通关
+                !isOpened && !isBomb,
+                // 有是 bomb 的格子没被标记，游戏不能通关
+                !isFlag && isBomb,
+            ]
+
+            let a = conditions.findIndex((element, index) => {
+                return element === true
+            })
+            if (a !== -1) {
+                result = false
+                break
+            }
+        }
+
+        // 游戏通关
+        return result
+    }
+
+    // 成功后的操作
+    const afterSuccess = function() {
+        let gamearea = e('.gamearea')
+        let c = e('#id-div-mime')
+        let allCell = c.querySelectorAll('.cell')
+
+        for (let i = 0; i < allCell.length; i++) {
+            let cell = allCell[i]
+            cell.classList.add('opened')
+            cell.classList.remove('question')
+            cell.classList.remove('flag')
+        }
+
+        // gamearea.insertAdjacentHTML('beforeend', `<div class="gameEndInfo">你真棒</div>`)
+    }
+
+    // 游戏结束
+    const gameOver = function(x, y) {
+        let gamearea = e('.gamearea')
+        global.gameStatus = false
+
+        let c = document.querySelector('#id-div-mime')
+        let allCells = c.querySelectorAll('.cell')
+        let redBomb = e(`[data-x="${x}"][data-y="${y}"]`)
+
+        redBomb.classList.add('fail')
+        allCells.forEach(e => {
+            e.classList.add('opened')
+            e.classList.remove('flag')
+        })
+
+        // gamearea.insertAdjacentHTML('beforeend', `<div class="gameEndInfo">可惜</div>`)
+    }
+
+    const vjklAround = function(square, x, y) {
+        vjkl1(square, x - 1, y)
+        vjkl1(square, x + 1, y)
+        vjkl1(square, x, y - 1)
+        vjkl1(square, x, y + 1)
+        vjkl1(square, x - 1, y - 1)
+        vjkl1(square, x + 1, y - 1)
+        vjkl1(square, x - 1, y + 1)
+        vjkl1(square, x + 1, y + 1)
+    }
+
+    const vjkl1 = function(square, x, y) {
+        // 不满足边界条件则返回
+        if (x < 0 || x >= square.length || y < 0 || y >= square.length) {
+            return
+        }
+
+        // 已经展开则返回
+        let cell = e(`[data-x="${x}"][data-y="${y}"]`)
+        if (cell.classList.contains('opened')) {
+            return
+        }
+
+        // 未展开且满足边界条件
+        let cellNum = cell.dataset.number
+        if (cellNum === '9') {
+            // 什么也不做
+        } else if (cellNum === '0') {
+            cell.classList.add('opened')
+            vjklAround(square, x, y)
+        } else {
+            cell.classList.add('opened')
+        }
+    }
+
+    const jwyi = function(square) {
+        for (let i = 0; i < square.length; i++) {
+            let row = square[i]
+            for (let j = 0; j < row.length; j++) {
+                let cell = row[j]
+                if (cell === 9) {
+                    jwyi1(square, i - 1, j)
+                    jwyi1(square, i + 1, j)
+                    jwyi1(square, i, j - 1)
+                    jwyi1(square, i, j + 1)
+                    jwyi1(square, i - 1, j - 1)
+                    jwyi1(square, i + 1, j - 1)
+                    jwyi1(square, i - 1, j + 1)
+                    jwyi1(square, i + 1, j + 1)
+                }
+            }
+        }
+        return square
+    }
+
+    const jwyi1 = function(square, x, y) {
+        if (x < 0 || x >= square.length || y < 0 || y >= square.length || square[x][y] === 9) {
+            return
+        }
+        square[x][y] += 1
+    }
+
+    // 获取扫雷数据
+    const squareData = function() {
+        // 雷的数量
+        let bombNum = Number(e('#bombNum').value)
+        let rowNum = Number(e('#rowNum').value)
+        // 雷以外的格子的数量
+        let digitalNum = rowNum ** 2 - bombNum
+        let bombNumArray = []
+        let digitalNumArray = []
+
+        for (let i = 0; i < bombNum; i++) {
+            bombNumArray.push(9)
+        }
+        for (let i = 0; i < digitalNum; i++) {
+            bombNumArray.push(0)
+        }
+
+        // 拼 9 和 0 到一个数组里
+        let a = bombNumArray.concat(digitalNumArray)
+        a = _.shuffle(a)
+
+        // 把由 9 和 0 组成的一维数组按 rowNum 分成二维数组
+        let b = []
+        let x = []
+        for (let i = 0; i < a.length; i++) {
+            let item = a[i]
+
+            x.push(item)
+            if (x.length === rowNum) {
+                b.push(x)
+                x = []
+            }
+        }
+
+        // 处理二维数组，9 周围都 +1
+        let result = jwyi(b)
+        return result
+    }
+
+    const reDraw = function(x, y) {
+        let square = JSON.stringify(squareData())
+        if (JSON.parse(square)[x][y] !== 0) {
+            reDraw(x, y)
+        } else {
+            drawsklz(square)
+            bindEventDelegate(square)
+            e(`[data-x="${x}"][data-y="${y}"]`).click()
+        }
+    }
+
+    const initGame = function() {
+        let sklzBox = e('#id-div-mime')
+        let gameEndInfo = e('.gameEndInfo')
+        if (sklzBox !== null) {
+            sklzBox.remove()
+        }
+        if (gameEndInfo !== null) {
+            gameEndInfo.remove()
+        }
+
+        global.gameStatus = true
+        global.haveFirstClick = true
+    }
+
+    const __main = function() {
+        initGame()
+        let square = JSON.stringify(squareData())
+
+        drawsklz(square)
+        bindEventDelegate(square)
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        __main()
+    })
+</script>
+</body>
+</html>
