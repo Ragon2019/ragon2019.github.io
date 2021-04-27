@@ -204,6 +204,7 @@
                 gameOver(cellX, cellY)
                 return
             } else if (cellNumber === '0') {
+                cell.classList.add('opened')
                 vjklAround(square, cellX, cellY)
             } else {
                 cell.classList.add('opened')
