@@ -8,7 +8,7 @@
 </head>
 <body>
 <div id="nav">
-    <div id="logo" onclick="loadProject(0)">
+    <div id="logo" onclick="jumpFromId(0)">
         <img width="100%" height="100%" src="static/logo.jpg" alt=""/>
     </div>
     <div id="projects">
@@ -20,9 +20,7 @@
         <div class="line"></div>
     </div>
 </div>
-<div id="viewer">
-    <iframe id="iframe" data-id="0" src="home/index.html"></iframe>
-</div>
+<div id="viewer"></div>
 <script>
     const log = console.log.bind(console)
 
@@ -36,6 +34,43 @@
 
     const dc = (tagName) => {
         return document.createElement(tagName)
+    }
+
+    const argsFromQuery = (query) => {
+        let o = {}
+        if (query.length === 0) {
+            return o
+        }
+        query.split('&').forEach(e => {
+            let [k, v] = e.split('=')
+            o[k] = v
+        })
+        return o
+    }
+
+    const parsedUrl = (url) => {
+        // 这个时候 url 的格式是 /about?name=gua, 因为 # 已经通过 slice 去掉了
+        let path = ''
+        let query = {}
+        let index = url.indexOf('?')
+        if (index > -1) {
+            path = url.slice(0, index)
+            let q = url.slice(index + 1)
+            query = argsFromQuery(q)
+        } else {
+            path = url
+        }
+        // 直接返回 object 的简写形式
+        return {
+            path,
+            query,
+        }
+    }
+
+    const findSelectedInAll = function(key, val, all) {
+        return all.find(e => {
+            return e[key] === val
+        })
     }
 </script>
 <script>
@@ -57,45 +92,19 @@
         return result
     }
 
-    // 加载项目
-    const loadProject = function(projectId) {
-        let iframe = e('#iframe')
+    // 在项目菜单元素中添加所有项目元素
+    const addAllProjects = function() {
+        let projectsContainer = e('#projects-container')
         let projectsData = global.projectsData
-        let id = global.selectedProjectId
-        if (projectId !== undefined) {
-            id = projectId
-        }
-        let src
 
-        for (let i = 0; i < projectsData.length; i++) {
+        for (let i = 1; i < projectsData.length; i++) {
             let p = projectsData[i]
-            if (p.id === id) {
-                src = p.link
-                iframe.dataset.id = String(p.id)
-                iframe.src = src
-                break
-            }
+            let projectH = projectHTML(p)
+            projectsContainer.insertAdjacentHTML('beforeend', projectH)
         }
-
-        expandClicked('hide')
     }
 
-    // 切换项目
-    const changeProject = function() {
-        let projects = e('#projects')
-        projects.addEventListener('click', event => {
-            let target = event.target
-            let projectEle = target.closest('.project')
-            if (projectEle === null) {
-                return
-            }
-            log('projectEle >>>>>>> ', '(', projectEle, ')')
-            let id = projectEle.dataset.id
-            global.selectedProjectId = Number(id)
-            loadProject()
-        })
-    }
-
+    // 展开收起项目菜单
     const expandClicked = function(action) {
         let projects = e('#projects')
         if (action === undefined) {
@@ -107,35 +116,95 @@
         }
     }
 
-    // 切换项目容器的显示
-    const toggleDisplayProjects = function() {
+    // 监听菜单按钮
+    const bindEventExpandButton = function() {
         let expand = e('#expand')
 
+        // 点击按钮后，展开收起项目菜单
         expand.addEventListener('click', event => {
             expandClicked()
         })
     }
+    
+    // 监听路由
+    const bindEventPopState = () => {
+        window.addEventListener('hashchange', (event) => {
+            // event.oldURL 表示变化之前的 URL, event.newURL 表示变化之后（也就是现在）的 URL
+            // log('event url', event.oldURL, event.newURL)
+            render()
+        })
+    }
+    
+    // 监听项目是否被点击
+    // 被点击则，跳转路由、切换项目
+    const jumpFromId = function(id) {
+        global.selectedProjectId = Number(id)
+        // 路由跳转
+        let selectedProject = findSelectedInAll('id', global.selectedProjectId, global.projectsData)
+        let path = selectedProject.path
+        let state = {
+            'path': path
+        }
+        history.pushState(state, '', path)
+        // 渲染页面
+        render()
+    }
+    const bindEventChangeProject = function() {
+        let projects = e('#projects')
+        projects.addEventListener('click', event => {
+            let target = event.target
+            let projectEle = target.closest('.project')
+            if (projectEle === null) {
+                return
+            }
+            let id = projectEle.dataset.id
+            jumpFromId(id)
+        })
+    }
+
+    // 根据路由渲染页面
+    const responseForPath = function(path) {
+        let r
+        if (path === '/') {
+            let home = global.projectsData[0]
+            r = `<iframe id="iframe" data-id="${home.id}" src="${home.link}"></iframe>`
+        } else {
+            // 拿到 path 对应的 project，查的时候需要加 #
+            let selectedProject = findSelectedInAll('path', `#${path}`, global.projectsData)
+            r = `<iframe id="iframe" data-id="${selectedProject.id}" src="${selectedProject.link}"></iframe>`
+        }
+
+        return r
+    }
+    const render = () => {
+        let { path, query } = parsedUrl(location.hash.slice(1))
+        if (location.hash === '') {
+            path = '/'
+        }
+        // log('path and query', path, query)
+        // 加载路由对应的项目（iframe）
+        let r = responseForPath(path)
+        let viewer = e('#viewer')
+        viewer.innerHTML = ''
+        viewer.insertAdjacentHTML('beforeend', r)
+        // 收起项目菜单
+        expandClicked('hide')
+    }
 
     // 绑定事件
     const bindEvents = () => {
-        toggleDisplayProjects()
-        changeProject()
+        bindEventExpandButton()
+        bindEventChangeProject()
+        bindEventPopState()
     }
 
-    const render = () => {
-        // 在项目容器元素中添加所有项目元素
-        let projectsContainer = e('#projects-container')
-        let projectsData = global.projectsData
-
-        for (let i = 1; i < projectsData.length; i++) {
-            let p = projectsData[i]
-            let projectH = projectHTML(p)
-            projectsContainer.insertAdjacentHTML('beforeend', projectH)
-        }
+    const initPage = () => {
+        addAllProjects()
+        render()
     }
 
     const setup = () => {
-        render()
+        initPage()
     }
 
     const global = {
@@ -143,11 +212,13 @@
             {
                 'id': 0,
                 'name': 'Home',
+                'path': '#/',
                 'link': 'home/index.html',
             },
             {
                 'id': 1,
                 'name': 'Minesweeper',
+                'path': '#/minesweeper',
                 'timestamp': '2021/04/09',
                 'link': 'projects/sklz/index.html',
                 'iconPath': 'static/sklz.jpg',
@@ -155,9 +226,18 @@
             {
                 'id': 2,
                 'name': 'Greedy Snake',
+                'path': '#/greedysnake',
                 'timestamp': '2021/04/13',
                 'link': 'projects/greedysnake/index.html',
                 'iconPath': 'static/snake.svg',
+            },
+            {
+                'id': 3,
+                'name': '2048',
+                'path': '#/2048',
+                'timestamp': '2021/05/06',
+                'link': 'projects/2048/index.html',
+                'iconPath': 'static/2048.png',
             },
         ],
         selectedProjectId: 0,

@@ -1,0 +1,557 @@
+<!--
+0 初始化游戏数据
+    1 画地图
+    2 得到 newCell，根据 cell 数据画 cell
+    3 添加事件监听
+        上下左右移动时
+            更改 cell 数据
+            显示 cell
+            没有可合并的 cell 时，游戏结束
+        空格暂停
+        按 R 重新开始游戏
+
+开始游戏时，方格上会在随机位置产生两个方块，数字为“ 2”或“ 4”。每个方块都有10％的几率是“ 4”，否则为“2”。
+进行滑动后，将在随机位置产生一个新的方块。新方块有 90% 的几率为 ”2“, 10% 的几率是 ”4“。
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>2048</title>
+    <link rel="stylesheet" type="text/css" href="index.css">
+    <style>
+        .tip-container {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .tip {
+            border: 1px dashed pink;
+            padding: 10px;
+        }
+
+        .playground-container {
+            width: max-content;
+            background-color: #AE9F8D;
+            padding: 4px;
+            border-radius: 4px;
+        }
+
+        .cell-container {
+            width: 60px;
+            height: 60px;
+            margin: 4px;
+            border-radius: 4px;
+            background-color: #C4B5A3;
+        }
+
+        .cell {
+            width: 100%;
+            height: 100%;
+            border-radius: 4px;
+        }
+
+        .cell-number {
+            text-align: center;
+            line-height: 60px;
+            font-size: 34px;
+            color: #66594B;
+        }
+
+        .cell-new {
+            animation: newcell 0.3s ease-in-out 0s 1 normal both;
+        }
+
+        @keyframes newcell {
+            from {
+                transform: scale(0);
+            }
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .row {
+            display: flex;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="tip-container">
+        <div class="tip">
+            <p>按方向键后游戏自动开始</p>
+<!--            <p>空格暂停</p>-->
+            <p>无可合并的格子时游戏结束</p>
+            <p>按 R 键重新开始游戏</p>
+        </div>
+    </div>
+</div>
+<div class="playground-container"></div>
+<script>
+    const log = console.log.bind(console)
+
+    const e = (selector) => {
+        return document.querySelector(selector)
+    }
+
+    const ea = (selector) => {
+        return document.querySelectorAll(selector)
+    }
+
+    let global = {}
+
+    // 显示
+    const cell = function(cellInfo) {
+        return `
+<div class="cell-container">
+    <div class="cell" data-x="${cellInfo.x}" data-y="${cellInfo.y}" data-number="${cellInfo.number}"></div>
+</div>`
+    }
+
+    const row = function(rowCells) {
+        let r = ``
+
+        for (let i = 0; i < rowCells.length; i++) {
+            let cellInfo = rowCells[i]
+            r += cell(cellInfo)
+        }
+
+        r = `<div class="row">${r}</div>`
+
+        return r
+    }
+
+    const square = function(cells) {
+        let r = ``
+
+        for (let i = 0; i < cells.length; i++) {
+            r += row(cells[i])
+        }
+
+        return r
+    }
+
+    const drawPlayground = function() {
+        let cells = cellsFromSize()
+        global.cells = cells
+
+        let playgroundHTML = square(cells)
+        e('.playground-container').insertAdjacentHTML('beforeend', playgroundHTML)
+    }
+
+    const drawCells = function() {
+        let newCell = global.newCell
+        let cells = global.cells
+
+        // 画格子
+        for (let i = 0; i < cells.length; i++) {
+            let rowCells = cells[i]
+            for (let j = 0; j < rowCells.length; j++) {
+                let cellInfo = rowCells[j]
+                if (cellInfo.number !== 0) {
+                    let cellElement = e(`[data-x="${cellInfo.x}"][data-y="${cellInfo.y}"]`)
+                    cellElement.classList.add('cell-number')
+                    cellElement.classList.remove('cell-new')
+                    cellElement.dataset.number = cellInfo.number
+                    cellElement.innerHTML = cellInfo.number
+                } else {
+                    let cellElement = e(`[data-x="${cellInfo.x}"][data-y="${cellInfo.y}"]`)
+                    cellElement.classList.remove('cell-number')
+                    cellElement.classList.remove('cell-new')
+                    cellElement.dataset.number = cellInfo.number
+                    cellElement.innerHTML = ''
+                }
+            }
+        }
+
+        // 画新出现的格子
+        for (let i = 0; i < newCell.length; i++) {
+            let c = newCell[i]
+            let newCellElement = e(`[data-x="${c.x}"][data-y="${c.y}"]`)
+            newCellElement.classList.add('cell-new')
+            newCellElement.dataset.number = c.number
+            newCellElement.addEventListener('animationend', event => {
+                newCellElement.classList.remove('cell-new')
+            }, {
+                once: true,
+            })
+        }
+    }
+
+    const emptyCells = function() {
+        let result = []
+        let cells = global.cells
+
+        for (let i = 0; i < cells.length; i++) {
+            let rowCells = cells[i]
+            for (let j = 0; j < rowCells.length; j++) {
+                let cellInfo = rowCells[j]
+                if (cellInfo.number === 0) {
+                    result.push(cellInfo)
+                }
+            }
+        }
+
+        return result
+    }
+
+    // 数据
+    const cellsFromSize = function() {
+        let playgroundSize = global.playgroundSize
+        let cells = []
+
+        for (let i = 0; i < playgroundSize.height; i++) {
+            let row = []
+            for (let j = 0; j < playgroundSize.width; j++) {
+                let cell = {
+                    x: j,
+                    y: i,
+                    number: 0,
+                }
+                row.push(cell)
+            }
+            cells.push(row)
+        }
+
+        return cells
+    }
+
+    const newCell = function(newCellNumber = 1) {
+        let r = []
+        for (let i = 0; i < newCellNumber; i++) {
+            let ecs = emptyCells()
+            let newCellInfo = ecs[Math.floor(Math.random() * ecs.length)]
+            let numberIsFour = Math.random() > 0.9
+
+            if (newCellInfo === undefined) {
+                return
+            }
+
+            let newCell = {
+                x: newCellInfo.x,
+                y: newCellInfo.y,
+            }
+            if (numberIsFour) {
+                newCell.number = 4
+                global.cells[newCellInfo.y][newCellInfo.x].number = 4
+            } else {
+                newCell.number = 2
+                global.cells[newCellInfo.y][newCellInfo.x].number = 2
+            }
+            r.push(newCell)
+        }
+
+
+        global.newCell = r
+    }
+
+    // 主要逻辑
+    const moveAction = function(direction) {
+        if (global.gameStatus === 'over') {
+            return
+        }
+
+        let cells = JSON.parse(JSON.stringify(global.cells))
+
+        if (direction === 'left' || direction === 'right') {
+            // 行
+            let processedRows = []
+            for (let i = 0; i < cells.length; i++) {
+                let rowCells = cells[i]
+                let y = i
+                processedRows[y] = processedCellsLine(direction, rowCells)
+            }
+            // cells 和 processedRows 结构一样，所以可以直接赋值
+            global.cells = processedRows
+        } else if (direction === 'up' || direction === 'down') {
+            // 列
+            let processedColumns = []
+            let rowLength = cells[0].length
+            let columnLength = cells.length
+            for (let i = 0; i < rowLength; i++) {
+                let columnCells = []
+                let x = i
+                for (let j = 0; j < columnLength; j++) {
+                    let y = j
+                    let cell = cells[y][x]
+                    columnCells.push(cell)
+                }
+                processedColumns[x] = processedCellsLine(direction, columnCells)
+            }
+            // cells 和 processedColumns 结构不一样，所以需要转换后再赋值
+            global.cells = changeColumnToRow(processedColumns)
+        }
+    }
+
+    const processedCellsLine = function(direction, cellsLine) {
+        let r = []
+        let removedZeroCellsLine = cellsLine.filter(cell => {
+            return cell.number !== 0
+        })
+
+        if (direction === 'left' || direction === 'up') {
+            // 合并
+            for (let i = 0; i < removedZeroCellsLine.length; i++) {
+                let cell = removedZeroCellsLine[i]
+                let nextCell = removedZeroCellsLine[i + 1]
+                if (nextCell === undefined) {
+                    r.push(cell)
+                } else {
+                    if (cell.number === nextCell.number) {
+                        let c = {
+                            ...cell,
+                            number: cell.number * 2,
+                        }
+                        r.push(c)
+                        i++
+                    } else {
+                        r.push(cell)
+                    }
+                }
+            }
+            // 补 0
+            let l = cellsLine.length - r.length
+            for (let i = 0; i < l; i++) {
+                let c = {
+                    number: 0,
+                }
+                r.push(c)
+                if (direction === 'left') {
+                    r = r.map((element, index) => {
+                        return {
+                            ...element,
+                            x: index,
+                            y: cellsLine[0].y,
+                        }
+                    })
+                } else if (direction === 'up') {
+                    r = r.map((element, index) => {
+                        return {
+                            ...element,
+                            x: cellsLine[0].x,
+                            y: index,
+                        }
+                    })
+                }
+            }
+        } else if (direction === 'right' || direction === 'down') {
+            // 合并
+            for (let i = removedZeroCellsLine.length - 1; i >= 0 ; i--) {
+                let cell = removedZeroCellsLine[i]
+                let nextCell = removedZeroCellsLine[i - 1]
+                if (nextCell === undefined) {
+                    r.push(cell)
+                } else {
+                    if (cell.number === nextCell.number) {
+                        let c = {
+                            ...cell,
+                            number: cell.number * 2,
+                        }
+                        r.push(c)
+                        i--
+                    } else {
+                        r.push(cell)
+                    }
+                }
+            }
+            let x = JSON.parse(JSON.stringify(r))
+            // 补 0
+            let l = cellsLine.length - r.length
+            r.reverse()
+            for (let i = 0; i < l; i++) {
+                let c = {
+                    number: 0,
+                }
+                r.unshift(c)
+                if (direction === 'right') {
+                    r = r.map((element, index) => {
+                        return {
+                            ...element,
+                            x: index,
+                            y: cellsLine[0].y,
+                        }
+                    })
+                } else if (direction === 'down') {
+                    r = r.map((element, index) => {
+                        return {
+                            ...element,
+                            x: cellsLine[0].x,
+                            y: index,
+                        }
+                    })
+                }
+            }
+        }
+
+        return r
+    }
+
+    const changeColumnToRow = function(columnArray) {
+        let r = []
+        let rowObj = {}
+        for (let i = 0; i < columnArray.length; i++) {
+            let column = columnArray[i]
+            for (let j = 0; j < column.length; j++) {
+                let item = column[j]
+                if (rowObj[j] === undefined) {
+                    rowObj[j] = []
+                }
+                rowObj[j].push(item)
+            }
+        }
+
+        let rowKeys = Object.keys(rowObj)
+        for (let i = 0; i < rowKeys.length; i++) {
+            r.push(rowObj[i])
+        }
+
+        return r
+    }
+
+    const pauseGame = function() {
+        if (global.gameStatus === 'paused') {
+            gameStart()
+        } else if (global.gameStatus === 'start') {
+            log('游戏暂停')
+            global.gameStatus = 'paused'
+            clearInterval(global.gameTimer)
+        }
+    }
+
+    const gameover = function() {
+        log('游戏结束，按 R 重新开始游戏')
+        alert('游戏结束，按 R 重新开始游戏')
+        global.gameStatus = 'over'
+        clearInterval(global.gameTimer)
+    }
+
+    const isAbleToMerge = function(cellLine) {
+        for (let i = 0; i < cellLine.length - 1; i++) {
+            let cell = cellLine[i]
+            let nextCell = cellLine[i + 1]
+            if (cell.number === nextCell.number) {
+                return true
+            }
+        }
+        return false
+    }
+
+    const checkIsGameOver = function() {
+        let cells = global.cells
+        let rowIsAbleToMerge
+        let columnIsAbleToMerge
+        let ecs = emptyCells()
+
+        if (ecs.length !== 0) {
+            return false
+        }
+
+        // 行
+        for (let i = 0; i < cells.length; i++) {
+            let rowCells = cells[i]
+            rowIsAbleToMerge = isAbleToMerge(rowCells)
+            if (rowIsAbleToMerge) {
+                break
+            }
+        }
+
+        // 列
+        let rowLength = cells[0].length
+        let columnLength = cells.length
+        for (let i = 0; i < rowLength; i++) {
+            let columnCells = []
+            for (let j = 0; j < columnLength; j++) {
+                let y = j
+                let x = i
+                let cell = cells[y][x]
+                columnCells.push(cell)
+            }
+            columnIsAbleToMerge = isAbleToMerge(columnCells)
+            if (columnIsAbleToMerge) {
+                break
+            }
+        }
+
+        // 行或列有能合并的 cell，游戏没有结束（return false）
+        let result = !(rowIsAbleToMerge || columnIsAbleToMerge)
+        return result
+    }
+
+    const keyUpEvent = function(event) {
+        let arrowKeyMapper = {
+            'ArrowLeft': 'left',
+            'ArrowUp': 'up',
+            'ArrowRight': 'right',
+            'ArrowDown': 'down',
+        }
+        let c = event.code
+        if (c.startsWith('Arrow')) {
+            if (global.gameStatus === 'waitStart') {
+                gameStart()
+            }
+            let direction = arrowKeyMapper[c]
+            // 更改 cells 数据
+            moveAction(direction)
+            // 生成新 cell
+            newCell()
+            // 画 cells
+            drawCells()
+            // 查看游戏是否结束
+            let over = checkIsGameOver()
+            if (over) {
+                gameover()
+            }
+        } else if (c === 'Space') {
+            pauseGame()
+        } else if (c === 'KeyR') {
+            init()
+        }
+    }
+
+    const bindEvent = function() {
+        window.addEventListener('keyup', keyUpEvent)
+    }
+
+    const init = function() {
+        clearInterval(global.gameTimer)
+        global = {
+            gameStatus: 'waitStart',
+            gameTimer: null,
+            playgroundSize: {
+                width: 4,
+                height: 4,
+            },
+            cells: [],
+        }
+        let c = e('.playground-container')
+        if (c.innerHTML !== '') {
+            c.innerHTML = ''
+        }
+
+        // 画图
+        drawPlayground()
+        newCell(2)
+        drawCells()
+
+        // 绑定事件
+        bindEvent()
+    }
+
+    const gameStart = function() {
+        log('游戏开始')
+        global.gameStatus = 'start'
+        global.gameTimer = setInterval(() => {
+
+        }, 1000)
+    }
+
+    const __main = function() {
+        init()
+    }
+
+    __main()
+</script>
+</body>
+</html>

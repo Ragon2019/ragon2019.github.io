@@ -1,0 +1,36 @@
+[data-number="0"] {
+    font-size: 0px;
+}
+[data-number="2"] {
+    background-color: #eee4da;
+}
+[data-number="4"] {
+    background-color: #ede0c8;
+}
+[data-number="8"] {
+    background-color: #f2b179;
+}
+[data-number="16"] {
+    background-color: #f59563;
+}
+[data-number="32"] {
+    background-color: #f67c5f;
+}
+[data-number="64"] {
+    background-color: #f65e3b;
+}
+[data-number="128"] {
+    background-color: #edcf72;
+}
+[data-number="256"] {
+    background-color: #edcc61;
+}
+[data-number="512"] {
+    background-color: #edc850;
+}
+[data-number="1024"] {
+    background-color: #edc53f;
+}
+[data-number="2048"] {
+    background-color: #edc22e;
+}
