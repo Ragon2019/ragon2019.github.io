@@ -20,61 +20,7 @@
     <title>2048</title>
     <link rel="stylesheet" type="text/css" href="index.css">
     <style>
-        .tip-container {
-            display: flex;
-            align-items: flex-start;
-            margin-bottom: 20px;
-        }
 
-        .tip {
-            border: 1px dashed pink;
-            padding: 10px;
-        }
-
-        .playground-container {
-            width: max-content;
-            background-color: #AE9F8D;
-            padding: 4px;
-            border-radius: 4px;
-        }
-
-        .cell-container {
-            width: 60px;
-            height: 60px;
-            margin: 4px;
-            border-radius: 4px;
-            background-color: #C4B5A3;
-        }
-
-        .cell {
-            width: 100%;
-            height: 100%;
-            border-radius: 4px;
-        }
-
-        .cell-number {
-            text-align: center;
-            line-height: 60px;
-            font-size: 34px;
-            color: #66594B;
-        }
-
-        .cell-new {
-            animation: newcell 0.3s ease-in-out 0s 1 normal both;
-        }
-
-        @keyframes newcell {
-            from {
-                transform: scale(0);
-            }
-            to {
-                transform: scale(1);
-            }
-        }
-
-        .row {
-            display: flex;
-        }
     </style>
 </head>
 <body>
@@ -86,28 +32,25 @@
             <p>无可合并的格子时游戏结束</p>
             <p>按 R 键重新开始游戏</p>
         </div>
+        <div class="button-container">
+            <button class="restart">重玩</button>
+        </div>
     </div>
 </div>
-<div class="playground-container"></div>
+<div class="playground-container">
+    <div class="grid-container"></div>
+    <div class="cell-container">
+<!--        <div class="cell cell-number">2</div>-->
+    </div>
+</div>
+<script src="./utils.js"></script>
+<script src="./event.js"></script>
 <script>
-    const log = console.log.bind(console)
-
-    const e = (selector) => {
-        return document.querySelector(selector)
-    }
-
-    const ea = (selector) => {
-        return document.querySelectorAll(selector)
-    }
-
-    let global = {}
+    let global = {dudu: 2}
 
     // 显示
     const cell = function(cellInfo) {
-        return `
-<div class="cell-container">
-    <div class="cell" data-x="${cellInfo.x}" data-y="${cellInfo.y}" data-number="${cellInfo.number}"></div>
-</div>`
+        return `<div class="grid-item"></div>`
     }
 
     const row = function(rowCells) {
@@ -138,45 +81,53 @@
         global.cells = cells
 
         let playgroundHTML = square(cells)
-        e('.playground-container').insertAdjacentHTML('beforeend', playgroundHTML)
+        e('.grid-container').insertAdjacentHTML('beforeend', playgroundHTML)
     }
 
     const drawCells = function() {
         let newCell = global.newCell
         let cells = global.cells
 
+        let cellContainer = e('.cell-container')
+        cellContainer.innerHTML = ''
         // 画格子
         for (let i = 0; i < cells.length; i++) {
             let rowCells = cells[i]
             for (let j = 0; j < rowCells.length; j++) {
                 let cellInfo = rowCells[j]
-                if (cellInfo.number !== 0) {
-                    let cellElement = e(`[data-x="${cellInfo.x}"][data-y="${cellInfo.y}"]`)
-                    cellElement.classList.add('cell-number')
-                    cellElement.classList.remove('cell-new')
-                    cellElement.dataset.number = cellInfo.number
-                    cellElement.innerHTML = cellInfo.number
-                } else {
-                    let cellElement = e(`[data-x="${cellInfo.x}"][data-y="${cellInfo.y}"]`)
-                    cellElement.classList.remove('cell-number')
-                    cellElement.classList.remove('cell-new')
-                    cellElement.dataset.number = cellInfo.number
-                    cellElement.innerHTML = ''
+                if (cellInfo.number === 0) {
+                    continue
                 }
-            }
-        }
+                let cellElement = document.createElement('div')
+                let cellInner = document.createElement('div')
+                let position  = cellInfo.previousPosition || { x: cellInfo.x, y: cellInfo.y }
+                let classes = ['cell', 'cell-number', positionClass(position),]
 
-        // 画新出现的格子
-        for (let i = 0; i < newCell.length; i++) {
-            let c = newCell[i]
-            let newCellElement = e(`[data-x="${c.x}"][data-y="${c.y}"]`)
-            newCellElement.classList.add('cell-new')
-            newCellElement.dataset.number = c.number
-            newCellElement.addEventListener('animationend', event => {
-                newCellElement.classList.remove('cell-new')
-            }, {
-                once: true,
-            })
+                log('cellInfo', cellInfo)
+                if (cellInfo.previousPosition !== null) {
+                    window.requestAnimationFrame(function() {
+                        classes[2] = positionClass(cellInfo)
+                        // We can't use classlist because it somehow glitches when replacing classes
+                        cellElement.setAttribute('class', classes.join(' '))
+                    })
+                }
+                cellElement.dataset.number = cellInfo.number
+                cellInner.setAttribute('class', 'cell-inner')
+                cellInner.innerHTML = cellInfo.number
+
+                // 新出现的格子
+                for (let i = 0; i < newCell.length; i++) {
+                    let c = newCell[i]
+                    if (cellInfo.x === c.x && cellInfo.y === c.y) {
+                        classes.push('cell-new')
+                        break
+                    }
+                }
+
+                cellElement.setAttribute('class', classes.join(' '))
+                cellElement.appendChild(cellInner)
+                cellContainer.appendChild(cellElement)
+            }
         }
     }
 
@@ -209,6 +160,7 @@
                     x: j,
                     y: i,
                     number: 0,
+                    previousPosition: null,
                 }
                 row.push(cell)
             }
@@ -248,12 +200,35 @@
     }
 
     // 主要逻辑
+    const prepareCells = function(cells) {
+        let newCells = []
+        for (let i = 0; i < cells.length; i++) {
+            let row = cells[i]
+            let newRow = []
+            for (let j = 0; j < row.length; j++) {
+                let cell = row[j]
+                cell = {
+                    ...cell,
+                    previousPosition: {
+                        x: cell.x,
+                        y: cell.y,
+                    },
+                }
+                newRow.push(cell)
+            }
+            newCells.push(newRow)
+        }
+
+        return newCells
+    }
+
     const moveAction = function(direction) {
         if (global.gameStatus === 'over') {
             return
         }
 
         let cells = JSON.parse(JSON.stringify(global.cells))
+        cells = prepareCells(cells)
 
         if (direction === 'left' || direction === 'right') {
             // 行
@@ -316,6 +291,7 @@
             for (let i = 0; i < l; i++) {
                 let c = {
                     number: 0,
+                    previousPosition: null,
                 }
                 r.push(c)
                 if (direction === 'left') {
@@ -356,13 +332,13 @@
                     }
                 }
             }
-            let x = JSON.parse(JSON.stringify(r))
             // 补 0
             let l = cellsLine.length - r.length
             r.reverse()
             for (let i = 0; i < l; i++) {
                 let c = {
                     number: 0,
+                    previousPosition: null,
                 }
                 r.unshift(c)
                 if (direction === 'right') {
@@ -479,42 +455,24 @@
         return result
     }
 
-    const keyUpEvent = function(event) {
-        let arrowKeyMapper = {
-            'ArrowLeft': 'left',
-            'ArrowUp': 'up',
-            'ArrowRight': 'right',
-            'ArrowDown': 'down',
+    const play = function(direction) {
+        if (global.gameStatus === 'waitStart') {
+            gameStart()
         }
-        let c = event.code
-        if (c.startsWith('Arrow')) {
-            if (global.gameStatus === 'waitStart') {
-                gameStart()
-            }
-            let direction = arrowKeyMapper[c]
-            // 更改 cells 数据
-            moveAction(direction)
-            // 生成新 cell
-            newCell()
-            // 画 cells
-            drawCells()
-            // 查看游戏是否结束
-            let over = checkIsGameOver()
-            if (over) {
-                gameover()
-            }
-        } else if (c === 'Space') {
-            pauseGame()
-        } else if (c === 'KeyR') {
-            init()
+        // 更改 cells 数据
+        moveAction(direction)
+        // 生成新 cell
+        newCell()
+        // 画 cells
+        drawCells()
+        // 查看游戏是否结束
+        let over = checkIsGameOver()
+        if (over) {
+            gameover()
         }
     }
 
-    const bindEvent = function() {
-        window.addEventListener('keyup', keyUpEvent)
-    }
-
-    const init = function() {
+    const init = function(isRestart = false) {
         clearInterval(global.gameTimer)
         global = {
             gameStatus: 'waitStart',
@@ -525,9 +483,13 @@
             },
             cells: [],
         }
-        let c = e('.playground-container')
+        let c = e('.cell-container')
+        let g = e('.grid-container')
         if (c.innerHTML !== '') {
             c.innerHTML = ''
+        }
+        if (g.innerHTML !== '') {
+            g.innerHTML = ''
         }
 
         // 画图
@@ -536,7 +498,9 @@
         drawCells()
 
         // 绑定事件
-        bindEvent()
+        if (!isRestart) {
+            bindEvent()
+        }
     }
 
     const gameStart = function() {
