@@ -97,7 +97,7 @@
         let projectsContainer = e('#projects-container')
         let projectsData = global.projectsData
 
-        for (let i = 1; i < projectsData.length; i++) {
+        for (let i = projectsData.length - 1; i >= 1; i--) {
             let p = projectsData[i]
             let projectH = projectHTML(p)
             projectsContainer.insertAdjacentHTML('beforeend', projectH)
@@ -238,6 +238,14 @@
                 'timestamp': '2021/05/06',
                 'link': 'projects/2048/index.html',
                 'iconPath': 'static/2048.png',
+            },
+            {
+                'id': 4,
+                'name': 'Bezier',
+                'path': '#/bezier',
+                'timestamp': '2021/07/26',
+                'link': 'projects/bezier/index.html',
+                'iconPath': 'static/bezier.jpeg',
             },
         ],
         selectedProjectId: 0,

@@ -96,7 +96,7 @@ body {
 .project-img {
     width: 32px;
     height: 32px;
-    border: 2px solid #ffffff;
+    /*border: 2px solid #ffffff;*/
     margin-right: 4px;
 }
 
