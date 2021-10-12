@@ -94,8 +94,10 @@
                 let x = (dot.x + ((nextDot.x - dot.x) * ratio))
                 let y = (dot.y + ((nextDot.y - dot.y) * ratio))
                 let o = {
-                    x: Number(x.toFixed(2)),
-                    y: Number(y.toFixed(2)),
+                    // x: Number(x.toFixed(2)),
+                    // y: Number(y.toFixed(2)),
+                    x: x,
+                    y: y,
                 }
                 d.push(o)
             }
@@ -109,7 +111,8 @@
     const getDotsInCurve = function(dots, curveDotsNum) {
         let r = []
         for (let i = 0; i < curveDotsNum; i++) {
-            let ratio = Number(((i + 1) / curveDotsNum).toFixed(2))
+            // let ratio = Number(((i + 1) / curveDotsNum).toFixed(2))
+            let ratio = (i + 1) / curveDotsNum
             let d = getDotInCurve(dots, ratio)
             r.push(d)
         }
@@ -140,10 +143,11 @@
             totalDots.push(lineTotalDots)
         })
         totalLength = totalLength.toFixed(2)
-        // log('totalLength', totalLength)
-        // log('totalDots', totalDots)
+        // 处理后，所有点的数据（只处理一条线的情况）
+        let processedTotalDots = processDots(totalDots[0])
         return {
             'totalDots': totalDots,
+            'processedTotalDots': processedTotalDots,
             'totalLength': totalLength,
         }
     }
@@ -156,7 +160,7 @@
         if (config.animation) {
             drawAnimation(game, canvas)
         } else if (config.speedBall) {
-            drawSpeedBall(game, canvas)
+            drawSpeedBall2(game, canvas)
         } else {
             draw(game, canvas)
             let z = totalDotsAndTotalLength(game, canvas)
@@ -226,7 +230,6 @@
             if (Math.floor(game.animationProgress) !== 1) {
                 drawAnimation(game, canvas)
             } else {
-                // drawAll(game, canvas)
                 game.animationProgress = 0
             }
         }, 1000 / game.animationFrame)
@@ -312,6 +315,75 @@
                 }
             } else {
                 drawSpeedBall(game, canvas)
+            }
+        }, 1000 / speedBall.fps)
+    }
+    const drawSpeedBall2 = function(game, canvas, end) {
+        let ctx = canvas.getContext('2d')
+        clearCanvas(canvas)
+        // 画弧线（轨道）
+        let lines = game.lines
+        lines.forEach(line => {
+            let sections = line.sections
+            sections.forEach((section, index) => {
+                let dots = section.data
+                if (dots.length !== 0) {
+                    let bezier1 = new Bezier(canvas, game, dots)
+                    bezier1.drawCurve()
+                }
+            })
+        })
+        // 获取弧线上所有的点（只考虑一条线的情况）
+        let z = totalDotsAndTotalLength(game, canvas)
+        let totalDots = z.processedTotalDots
+        // 画小球
+        // 小球相关数据
+        let speedBall = game.speedBall
+        // 起点，终点
+        let beginDot = totalDots[0]
+        let endDot = totalDots[totalDots.length - 1]
+        // 起始下标
+        let beginIndex = speedBall.index
+        // 小球坐标
+        if (beginIndex === 0) {
+            speedBall.position = {
+                x: beginDot.x,
+                y: beginDot.y,
+            }
+        }
+        // 根据小球 position 画小球
+        let p = speedBall.position
+        ctx.fillStyle = 'green'
+        ctx.beginPath()
+        if (end) {
+            ctx.arc(endDot.x, endDot.y, speedBall.size, 0, 2 * Math.PI)
+            ctx.fill()
+            return
+        } else {
+            ctx.arc(p.x, p.y, speedBall.size, 0, 2 * Math.PI)
+            ctx.fill()
+        }
+        // 根据小球 speed，更新小球 position
+        speedBall.index += speedBall.speed
+        if (speedBall.index < totalDots.length - 1) {
+            let nextDot = totalDots[speedBall.index]
+            speedBall.position = {
+                x: nextDot.x,
+                y: nextDot.y,
+            }
+        }
+
+        game.speedBallTimer = setTimeout(() => {
+            if (speedBall.index >= totalDots.length - 1) {
+                drawSpeedBall2(game, canvas, true)
+                // 初始化小球数据
+                speedBall.index = 0
+                speedBall.position = {
+                    x: beginDot.x,
+                    y: beginDot.y,
+                }
+            } else {
+                drawSpeedBall2(game, canvas)
             }
         }, 1000 / speedBall.fps)
     }

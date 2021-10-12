@@ -100,3 +100,29 @@ const midPointBetweenTwoDots = function(dot1, dot2) {
     }
     return r
 }
+
+const processDots = function(dots) {
+    // log('dots-before', dots)
+    // 四舍五入取整
+    let r = dots.map((item, index) => {
+        return {
+            x: Math.round(item.x),
+            y: Math.round(item.y),
+        }
+    })
+    // 判重，去除重复点
+    let z = []
+    for (let i = 0; i < r.length; i++) {
+        let item = r[i]
+        let ZLastItem = z[z.length - 1]
+        if (i === 0) {
+            z.push(item)
+            continue
+        }
+        if (ZLastItem.x !== item.x || ZLastItem.y !== item.y) {
+            z.push(item)
+        }
+    }
+    // log('dots-after', z)
+    return z
+}

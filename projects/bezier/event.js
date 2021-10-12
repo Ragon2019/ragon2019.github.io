@@ -160,6 +160,7 @@ const clearAllEvent = function(game) {
 const animationStart = function(game, config) {
     game.animationProgress = 0
     clearTimeout(game.animationTimer)
+    clearTimeout(game.speedBallTimer)
     game.animationSettings = config
     drawAll(game, {
         animation: true,
@@ -190,18 +191,19 @@ const animationEvent = function(game) {
         })
     })
     buttonBallSpeed.addEventListener('click', event => {
-        // clearTimeout(game.speedBallTimer)
-        // drawAll(game, {
-        //     speedBall: true,
-        // })
-        animationStart(game, {
-            backgroundLine: false,
-            line: true,
-            magicLine: false,
-            pointsLine: false,
-            ball: false,
-            points: false,
+        clearTimeout(game.animationTimer)
+        clearTimeout(game.speedBallTimer)
+        drawAll(game, {
+            speedBall: true,
         })
+        // animationStart(game, {
+        //     backgroundLine: false,
+        //     line: true,
+        //     magicLine: false,
+        //     pointsLine: false,
+        //     ball: false,
+        //     points: false,
+        // })
     })
 }
 //
