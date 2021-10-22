@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0px;
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div>关卡数据</div>
+    <div>
+        blue green purple red white yellow 六种颜色的球
+        <br>
+        例子：<b>blue;green;purple;red;white;yellow;</b>
+    </div>
+
+    <textarea id="ballsData" autofocus cols="80" rows="20">
+
+    </textarea>
+</div>
+<button id="button-saveBallsData">保存关卡数据</button>
+<script>
+    const log = console.log.bind(console)
+
+    const e = (selector) => document.querySelector(selector)
+
+    const es = (selector) => document.querySelectorAll(selector)
+
+    const dc = (tag) => document.createElement(tag)
+
+    const bindEvent = function() {
+        e('#button-saveBallsData').addEventListener('click', event => {
+            // text 转 object
+            let textarea = e('#ballsData')
+            let text = textarea.value
+            let re = /\n/gi;
+            text = text.replace(re, "");
+            let ot = text.split(';').slice(0, -1)
+            let resultBallsData = ot.map((item, index) => {
+                return {
+                    name: `ball_${item}`,
+                    color: item,
+                    type: 'normal',
+                    id: index,
+                }
+            })
+            localStorage.setItem('ballsData', JSON.stringify(resultBallsData))
+            if (window.confirm("关卡数据已保存，是否返回游戏页面")) {
+                window.location.href = "../game.html"
+            }
+        })
+    }
+
+    const renderTextareaValue = function() {
+        let textarea = e('#ballsData')
+        // object 转 text
+        let localBallsData = localStorage.getItem('ballsData')
+        let text = ''
+        if (localBallsData) {
+            let balls = JSON.parse(localBallsData)
+            for (let ball of balls) {
+                text = text + ball.color + ';'
+            }
+        } else {
+            text = 'blue;green;purple;red;white;yellow;'
+        }
+        textarea.value = text
+    }
+
+    // 主函数
+    const __main = function() {
+        bindEvent()
+        renderTextareaValue()
+    }
+
+    // 程序唯一入口
+    __main()
+</script>
+</body>
+</html>

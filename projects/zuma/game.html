@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>ZUMA</title>
+    <style media="screen">
+        canvas {
+            border: 1px black solid;
+        }
+    </style>
+    <script src="lodash.min.js"></script>
+</head>
+<body>
+<canvas id="id-canvas" width="800" height="600"></canvas>
+<hr>
+<button id="button-jumpToMapEditPage">编辑地图</button>
+<button id="button-jumpToBallsDataEditPage">编辑关卡数据</button>
+<div class="melon-controls">
+</div>
+<script src="bundle.min.js"></script>
+<script>
+    var es = sel => document.querySelectorAll(sel)
+
+    var bindAll = function(sel, eventName, callback) {
+        var l = es(sel)
+        for (var i = 0; i < l.length; i++) {
+            var input = l[i]
+            input.addEventListener(eventName, function(event) {
+                callback(event)
+            })
+        }
+    }
+
+    var templateControl = function(key, item) {
+        var t = `
+     <div class="">
+      <label>
+        <input class="melon-auto-slider" type="range"
+               max="300"
+               value="${ item.value }"
+               data-value="config.${ key }"
+        >
+        ${ item._comment }：<span class="melon-label">${ item.value }</span>
+      </label>
+    </div>
+    `
+        return t
+    }
+
+    var insertControls = function() {
+        var div = e('.melon-controls')
+        var keys = Object.keys(config)
+        for (var k of keys) {
+            var item = config[k]
+            var html = templateControl(k, item)
+            div.insertAdjacentHTML('beforeend', html)
+        }
+    }
+
+    var bindEvents = function() {
+        bindAll('.melon-auto-slider', 'input', function(event) {
+            var target = event.target
+            var bindVar = target.dataset.value
+            var v = target.value
+            eval(bindVar + '.value =' + v)
+            // config[bindVar] = v
+            //
+            var label = target.closest('label').querySelector('.melon-label')
+            label.innerText = v
+        })
+        e('#button-jumpToMapEditPage').addEventListener('click', function(event) {
+            window.location.href = "bezier/index.html"
+        })
+        e('#button-jumpToBallsDataEditPage').addEventListener('click', function(event) {
+            window.location.href = "ballsData/index.html"
+        })
+    }
+
+    var __main = function() {
+        // 从配置文件生成 HTML 控件
+        insertControls()
+        // 绑定事件
+        bindEvents()
+    }
+
+    __main()
+</script>
+</body>
+</html>

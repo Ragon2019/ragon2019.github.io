@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0px;
+        }
+
+        .yrui-button-container {
+            position: absolute;
+            left: 0px;
+            bottom: 0px;
+            z-index: 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            padding-bottom: 10px;
+            /* z-index: 10; */
+            /* cursor: pointer; */
+        }
+        .yrui-button {
+            position: relative;
+            width: fit-content;
+            height: fit-content;
+            padding: 4px 6px;
+            margin-right: 8px;
+            color: #ffffff;
+            background: #363636;
+            /*cursor: pointer;*/
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            /*width: 804px;*/
+            /*height: 604px;*/
+            /*border: 2px solid;*/
+            cursor: none;
+        }
+        #canvas {
+            position: absolute;
+            z-index: 1;
+        }
+        #canvas-cursor {
+            position: absolute;
+            z-index: 9;
+        }
+
+        .operation-container {
+            display: flex;
+        }
+
+        .operation {
+            width: fit-content;
+            height: fit-content;
+            padding: 4px 6px;
+            color: #ececec;
+            background: #363636;
+            margin-right: 8px;
+        }
+
+        .active {
+            color: #fff !important;
+            background-color: #2e7d32 !important;
+        }
+    </style>
+    <script src="../lodash.min.js"></script>
+</head>
+<body>
+<div class="canvas-container"></div>
+<script src="bundle.min.js"></script>
+</body>
+</html>
